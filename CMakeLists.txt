@@ -14,6 +14,8 @@
 
 cmake_minimum_required (VERSION 3.24)
 
+include(FetchContent)
+
 ########################################################################
 #
 # Project: IgANet-Examples
@@ -27,8 +29,7 @@ add_library(iganet::examples ALIAS iganet_examples)
 ########################################################################
 # IgANets (core)
 ########################################################################
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-  include(FetchContent)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)  
   FetchContent_Declare(
     iganet_core
     URL https://github.com/IgANets/iganet/archive/refs/heads/master.zip
