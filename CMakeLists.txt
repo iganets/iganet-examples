@@ -25,23 +25,25 @@ project(IgANet-Examples)
 
 add_library(iganet_examples INTERFACE)
 add_library(iganet::examples ALIAS iganet_examples)
+target_include_directories(iganet_examples INTERFACE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
 
 ########################################################################
 # IgANets (core)
 ########################################################################
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)  
-  FetchContent_Declare(
-    iganet_core
-    URL https://github.com/IgANets/iganet/archive/refs/heads/master.zip
-  )
-  set(IGANET_BUILD_EXAMPLES  OFF CACHE BOOL "" FORCE)  
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
-  find_package(Torch REQUIRED)
-
-  # Fake 'torch' target to satisfy iganet::core's incorrect use
-  target_include_directories(torch INTERFACE ${TORCH_INCLUDE_DIRS})
-  target_link_libraries(torch INTERFACE ${TORCH_LIBRARIES})
-  target_compile_options(torch INTERFACE ${TORCH_CXX_FLAGS})
+  if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
+    FetchContent_Declare(
+      iganet_core
+      GIT_REPOSITORY https://github.com/iganets/iganet.git
+    )
+  else()  
+    FetchContent_Declare(
+      iganet_core
+      URL https://github.com/IgANets/iganet/archive/refs/heads/master.zip
+    )
+  endif()
+     
   FetchContent_MakeAvailable(iganet_core)
   FetchContent_GetProperties(iganet_core)
   
@@ -52,8 +54,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
   set(CMAKE_CXX_EXTENSIONS OFF)
 endif()
-
-target_include_directories(iganet_examples INTERFACE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
 
 ########################################################################
 # Collect sources
