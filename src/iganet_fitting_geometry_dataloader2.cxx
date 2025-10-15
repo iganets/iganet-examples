@@ -30,27 +30,25 @@
 #include <iostream>
 
 /// @brief Specialization of the abstract IgANet class for function fitting
-template <typename Optimizer, typename GeometryMap, typename Variable>
-class fitting : public iganet::IgANet<Optimizer, GeometryMap, Variable,
-                                      iganet::IgABaseNoRefData>,
-                public iganet::IgANetCustomizable<GeometryMap, Variable> {
+template <typename Optimizer, typename Inputs, typename Outputs>
+class fitting : public iganet::IgANet2<Optimizer, Inputs, Outputs>,
+                public iganet::IgANetCustomizable2<Inputs, Outputs> {
 
 private:
   /// @brief Type of the base class
-  using Base = iganet::IgANet<Optimizer, GeometryMap, Variable,
-                              iganet::IgABaseNoRefData>;
+  using Base = iganet::IgANet2<Optimizer, Inputs, Outputs>;
 
   /// @brief Collocation points
-  typename Base::variable_collPts_type collPts_;
+  Base::template collPts_t<0> collPts_;
 
   /// @brief Type of the customizable class
-  using Customizable = iganet::IgANetCustomizable<GeometryMap, Variable>;
+  using Customizable = iganet::IgANetCustomizable2<Inputs, Outputs>;
 
   /// @brief Knot indices
-  typename Customizable::variable_interior_knot_indices_type knot_indices_;
+  Customizable::template output_interior_knot_indices_t<0> knot_indices_;  
 
   /// @brief Coefficient indices
-  typename Customizable::variable_interior_coeff_indices_type coeff_indices_;
+  Customizable::template output_interior_coeff_indices_t<0> coeff_indices_;
 
 public:
   /// @brief Constructors from the base class
@@ -70,13 +68,12 @@ public:
     // not change the inputs nor the variable function space.
     if (epoch == 0) {
       Base::inputs(epoch);
-      collPts_ = Base::variable_collPts(iganet::collPts::greville);
+      collPts_
+        = Base::template collPts<0>(iganet::collPts::greville);      
       knot_indices_ =
-          Base::u_.template find_knot_indices<iganet::functionspace::interior>(
-              collPts_.first);
+        Base::template output<0>().template find_knot_indices<iganet::functionspace::interior>(collPts_.first);
       coeff_indices_ =
-          Base::u_.template find_coeff_indices<iganet::functionspace::interior>(
-              knot_indices_);
+        Base::template output<0>().template find_coeff_indices<iganet::functionspace::interior>(knot_indices_);
 
       return true;
     } else
@@ -94,22 +91,22 @@ public:
     // and boundary parts that can be evaluated.
 
     if (outputs.dim() > 1)
-      Base::u_.from_tensor(outputs.t());
+      Base::outputs(outputs.t());
     else
-      Base::u_.from_tensor(outputs.flatten());
+      Base::outputs(outputs.flatten());
 
     // Evaluate the loss function
     if (outputs.dim() > 1)
       // If the batch size is larger than one we need to expand the symbolically
       // evaluated reference data
       return torch::mse_loss(
-          *Base::u_.eval(collPts_.first, knot_indices_, coeff_indices_)[0],
+          *Base::template output<0>().eval(collPts_.first, knot_indices_, coeff_indices_)[0],
           (sin(M_PI * collPts_.first[0]) * sin(M_PI * collPts_.first[1]))
               .expand({outputs.size(0), -1})
               .t());
     else
       return torch::mse_loss(
-          *Base::u_.eval(collPts_.first, knot_indices_, coeff_indices_)[0],
+          *Base::template output<0>().eval(collPts_.first, knot_indices_, coeff_indices_)[0],
           (sin(M_PI * collPts_.first[0]) * sin(M_PI * collPts_.first[1])));
   }
 };
@@ -139,9 +136,12 @@ int main() {
 
   // Geometry: Bi-linear B-spline function space S (geoDim = 2, p = q = 2)
   using geometry_t = iganet::S<iganet::UniformBSpline<real_t, 2, 2, 2>>;
+  
+  // Inputs: <geometry_t>
+  using inputs_t = std::tuple<geometry_t>;
 
-  // Variable: Bi-quadratic B-spline function space S (geoDim = 1, p = q = 2)
-  using variable_t = iganet::S<iganet::UniformBSpline<real_t, 1, 2, 2>>;
+  // Outputs: Bi-quadratic B-spline function space S (geoDim = 1, p = q = 2)
+  using outputs_t = std::tuple<iganet::S<iganet::UniformBSpline<real_t, 1, 2, 2>>>;
 
   // Create geometry data set for training
   iganet::IgADataset<> dataset;
@@ -194,15 +194,15 @@ int main() {
           activations.emplace_back(
               std::vector<std::any>{iganet::activation::none});
 
-          fitting<optimizer_t, geometry_t, variable_t>
+          fitting<optimizer_t, inputs_t, outputs_t>
               net( // Number of neurons per layers
                   layers,
                   // Activation functions
                   activations,
-                  // Number of B-spline coefficients of the geometry
-                  iganet::utils::to_array(25_i64, 25_i64),
-                  // Number of B-spline coefficients of the variable
-                  iganet::utils::to_array(ncoeffs, ncoeffs));
+                  // Number of B-spline coefficients of the inputs (=geometry)
+                  std::tuple{iganet::utils::to_array(25_i64, 25_i64)},
+                  // Number of B-spline coefficients of the outputs (=solution)
+                  std::tuple{iganet::utils::to_array(ncoeffs, ncoeffs)});
 
           iganet::Log(iganet::log::info)
               << "#coeff: " << ncoeffs << ", #layers: " << nlayers
@@ -246,26 +246,26 @@ int main() {
           xml.load_file(IGANET_DATA_DIR "surfaces/2d/geo02.xml");
 
           // Load geometry parameterization from XML
-          net.G().from_xml(xml);
+          net.template input<0>().from_xml(xml);
 
           // Evaluate network
           net.eval();
 
           // Evaluate position of collocation points in physical domain
-          auto colPts = net.G().eval(net.collPts().first);
+          auto colPts = net.template input<0>().eval(net.collPts().first);
 
           // Plot the solution
-          net.G()
+          net.template input<0>()
               .space()
-              .plot(net.u().space(),
+            .plot(net.template output<0>().space(),
                     std::array<torch::Tensor, 2>{*colPts[0], *colPts[1]}, json)
               ->show();
 #endif
           
 #ifdef IGANET_WITH_GISMO
           // Convert B-spline objects to G+Smo
-          auto G_gismo = net.G().space().to_gismo();
-          auto u_gismo = net.u().space().to_gismo();
+          auto G_gismo = net.template input<0>().space().to_gismo();
+          auto u_gismo = net.template output<0>().space().to_gismo();
           gismo::gsFunctionExpr<real_t> f_gismo("sin(pi*x)*sin(pi*y)", 2);
 
           // Set up expression assembler
