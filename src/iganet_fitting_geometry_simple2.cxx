@@ -171,7 +171,7 @@ int main() {
 
 #ifdef IGANET_WITH_MATPLOT
           // Evaluate position of collocation points in physical domain
-          auto colPts = net.G().eval(net.collPts().first);
+          auto colPts = net.template input<0>().eval(net.collPts().first);
 
           // Plot the solution
           net.template input<0>()
