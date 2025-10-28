@@ -47,6 +47,18 @@ public:
   /// @brief Returns a constant reference to the collocation points
   auto const &collPts() const { return collPts_; }
 
+  /// @brief Returns a constant reference to the geometry
+  auto const &G() const { return Base::template input<0>(); }
+
+  /// @brief Returns a non-constant reference to the geometry
+  auto &G() { return Base::template input<0>(); }
+
+  /// @brief Returns a constant reference to the solution
+  auto const &u() const { return Base::template output<0>(); }
+
+  /// @brief Returns a non-constant reference to the solution
+  auto &u() { return Base::template output<0>(); }
+
   /// @brief Initializes the epoch
   ///
   /// @param[in] epoch Epoch number
@@ -78,7 +90,7 @@ public:
     Base::outputs(outputs);
 
     // Evaluate the loss function
-    return torch::mse_loss(*Base::template output<0>().eval(collPts_.first)[0],
+    return torch::mse_loss(*u().eval(collPts_.first)[0],
                            sin(M_PI * collPts_.first[0]) *
                                sin(M_PI * collPts_.first[1]));
   }
@@ -162,16 +174,16 @@ int main() {
 
 #ifdef IGANET_WITH_MATPLOT
           // Plot the solution
-          net.template input<0>()
+          net.G()
               .space()
-              .plot(net.template output<0>().space(), net.collPts().first, json)
+              .plot(net.u().space(), net.collPts().first, json)
               ->show();
 #endif
 
 #ifdef IGANET_WITH_GISMO
           // Convert B-spline objects to G+Smo
-          auto G_gismo = net.template input<0>().space().to_gismo();
-          auto u_gismo = net.template output<0>().space().to_gismo();
+          auto G_gismo = net.G().space().to_gismo();
+          auto u_gismo = net.u().space().to_gismo();
           gismo::gsFunctionExpr<real_t> f_gismo("sin(pi*x)*sin(pi*y)", 2);
 
           // Set up expression assembler

@@ -57,6 +57,18 @@ public:
   /// @brief Returns a constant reference to the collocation points
   auto const &collPts() const { return collPts_; }
 
+  /// @brief Returns a constant reference to the geometry
+  auto const &G() const { return Base::template input<0>(); }
+
+  /// @brief Returns a non-constant reference to the geometry
+  auto &G() { return Base::template input<0>(); }
+
+  /// @brief Returns a constant reference to the solution
+  auto const &u() const { return Base::template output<0>(); }
+
+  /// @brief Returns a non-constant reference to the solution
+  auto &u() { return Base::template output<0>(); }
+
   /// @brief Initializes the epoch
   ///
   /// @param[in] epoch Epoch number
@@ -70,13 +82,11 @@ public:
       Base::inputs(epoch);
       collPts_ = Base::template collPts<0>(iganet::collPts::greville);
       knot_indices_ =
-          Base::template output<0>()
-              .template find_knot_indices<iganet::functionspace::interior>(
-                  collPts_.first);
+          u().template find_knot_indices<iganet::functionspace::interior>(
+              collPts_.first);
       coeff_indices_ =
-          Base::template output<0>()
-              .template find_coeff_indices<iganet::functionspace::interior>(
-                  knot_indices_);
+          u().template find_coeff_indices<iganet::functionspace::interior>(
+              knot_indices_);
 
       return true;
     } else
@@ -103,15 +113,13 @@ public:
       // If the batch size is larger than one we need to expand the symbolically
       // evaluated reference data
       return torch::mse_loss(
-          *Base::template output<0>().eval(collPts_.first, knot_indices_,
-                                           coeff_indices_)[0],
+          *u().eval(collPts_.first, knot_indices_, coeff_indices_)[0],
           (sin(M_PI * collPts_.first[0]) * sin(M_PI * collPts_.first[1]))
               .expand({outputs.size(0), -1})
               .t());
     else
       return torch::mse_loss(
-          *Base::template output<0>().eval(collPts_.first, knot_indices_,
-                                           coeff_indices_)[0],
+          *u().eval(collPts_.first, knot_indices_, coeff_indices_)[0],
           (sin(M_PI * collPts_.first[0]) * sin(M_PI * collPts_.first[1])));
   }
 };
@@ -252,26 +260,26 @@ int main() {
           xml.load_file(IGANET_DATA_DIR "surfaces/2d/geo02.xml");
 
           // Load geometry parameterization from XML
-          net.template input<0>().from_xml(xml);
+          net.G().from_xml(xml);
 
           // Evaluate network
           net.eval();
 
           // Evaluate position of collocation points in physical domain
-          auto colPts = net.template input<0>().eval(net.collPts().first);
+          auto colPts = net.G().eval(net.collPts().first);
 
           // Plot the solution
-          net.template input<0>()
+          net.G()
               .space()
-              .plot(net.template output<0>().space(),
+              .plot(net.u().space(),
                     std::array<torch::Tensor, 2>{*colPts[0], *colPts[1]}, json)
               ->show();
 #endif
 
 #ifdef IGANET_WITH_GISMO
           // Convert B-spline objects to G+Smo
-          auto G_gismo = net.template input<0>().space().to_gismo();
-          auto u_gismo = net.template output<0>().space().to_gismo();
+          auto G_gismo = net.G().space().to_gismo();
+          auto u_gismo = net.u().space().to_gismo();
           gismo::gsFunctionExpr<real_t> f_gismo("sin(pi*x)*sin(pi*y)", 2);
 
           // Set up expression assembler

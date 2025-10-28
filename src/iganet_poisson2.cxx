@@ -78,6 +78,12 @@ public:
   /// @brief Returns a non-constant reference to the geometry
   auto &G() { return Base::template input<0>(); }
 
+  /// @brief Returns a constant reference to the right-hand side
+  auto const &f() const { return Base::template input<1>(); }
+
+  /// @brief Returns a non-constant reference to the right-hand side
+  auto &f() { return Base::template input<1>(); }
+
   /// @brief Returns a constant reference to the solution
   auto const &u() const { return Base::template output<0>(); }
 
@@ -98,22 +104,18 @@ public:
       collPts_ = Base::template collPts<0>(iganet::collPts::greville_ref1);
 
       var_knot_indices_ =
-          Base::template output<0>()
-              .template find_knot_indices<iganet::functionspace::interior>(
-                  collPts_.first);
+          u().template find_knot_indices<iganet::functionspace::interior>(
+              collPts_.first);
       var_coeff_indices_ =
-          Base::template output<0>()
-              .template find_coeff_indices<iganet::functionspace::interior>(
-                  var_knot_indices_);
+          u().template find_coeff_indices<iganet::functionspace::interior>(
+              var_knot_indices_);
 
       G_knot_indices_ =
-          Base::template input<0>()
-              .template find_knot_indices<iganet::functionspace::interior>(
-                  collPts_.first);
+          G().template find_knot_indices<iganet::functionspace::interior>(
+              collPts_.first);
       G_coeff_indices_ =
-          Base::template input<0>()
-              .template find_coeff_indices<iganet::functionspace::interior>(
-                  G_knot_indices_);
+          G().template find_coeff_indices<iganet::functionspace::interior>(
+              G_knot_indices_);
 
       return true;
     } else
@@ -133,16 +135,15 @@ public:
     Base::outputs(outputs);
 
     // Evaluate the Laplacian operator
-    auto u_ilapl = Base::template output<0>().ilapl(
-        Base::template input<0>(), collPts_.first, var_knot_indices_,
-        var_coeff_indices_, G_knot_indices_, G_coeff_indices_);
+    auto u_ilapl =
+        u().ilapl(G(), collPts_.first, var_knot_indices_, var_coeff_indices_,
+                  G_knot_indices_, G_coeff_indices_);
 
-    auto f = Base::template input<1>().eval(collPts_.first, var_knot_indices_,
-                                            var_coeff_indices_);
+    auto f =
+        this->f().eval(collPts_.first, var_knot_indices_, var_coeff_indices_);
 
     auto u_bdr =
-        Base::template output<0>()
-            .template eval<iganet::functionspace::boundary>(collPts_.second);
+        u().template eval<iganet::functionspace::boundary>(collPts_.second);
 
     auto bdr =
         ref_.template eval<iganet::functionspace::boundary>(collPts_.second);
@@ -188,7 +189,7 @@ int main() {
 
   // Impose the negative of the second derivative of sin(M_PI*x) *
   // sin(M_PI*y) as right-hand side vector (manufactured solution)
-  net.template input<1>().transform([](const std::array<real_t, 2> xi) {
+  net.f().transform([](const std::array<real_t, 2> xi) {
     return std::array<real_t, 1>{-2.0 * M_PI * M_PI * sin(M_PI * xi[0]) *
                                  sin(M_PI * xi[1])};
   });
