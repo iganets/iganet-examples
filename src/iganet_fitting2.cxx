@@ -147,7 +147,7 @@ int main() {
                  );
 
           iganet::Log(iganet::log::info)
-              << "#coeff: " << ncoeffs << ", #layers: " << nlayers
+              << "#coeff per direction: " << ncoeffs << ", #layers: " << nlayers
               << ", #neurons: " << nneurons
               << ", #parameters: " << net.nparameters() << std::endl;
 
