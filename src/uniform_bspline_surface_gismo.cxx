@@ -55,7 +55,7 @@ int main() {
   // Convert result back into B-spline object
   gismo::gsMultiPatch<real_t> mp = opt.result();
   bspline.from_gismo(
-                     dynamic_cast<const gismo::gsTensorBSpline<2, real_t> &>(mp.patch(0)));
+      dynamic_cast<const gismo::gsTensorBSpline<2, real_t> &>(mp.patch(0)));
 
   // Export as ParaView file
   out = "Geometry_opt";

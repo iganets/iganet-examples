@@ -45,7 +45,7 @@ private:
   using Customizable = iganet::IgANetCustomizable2<Inputs, Outputs>;
 
   /// @brief Knot indices
-  Customizable::template output_interior_knot_indices_t<0> knot_indices_;  
+  Customizable::template output_interior_knot_indices_t<0> knot_indices_;
 
   /// @brief Coefficient indices
   Customizable::template output_interior_coeff_indices_t<0> coeff_indices_;
@@ -68,12 +68,15 @@ public:
     // not change the inputs nor the variable function space.
     if (epoch == 0) {
       Base::inputs(epoch);
-      collPts_
-        = Base::template collPts<0>(iganet::collPts::greville);      
+      collPts_ = Base::template collPts<0>(iganet::collPts::greville);
       knot_indices_ =
-        Base::template output<0>().template find_knot_indices<iganet::functionspace::interior>(collPts_.first);
+          Base::template output<0>()
+              .template find_knot_indices<iganet::functionspace::interior>(
+                  collPts_.first);
       coeff_indices_ =
-        Base::template output<0>().template find_coeff_indices<iganet::functionspace::interior>(knot_indices_);
+          Base::template output<0>()
+              .template find_coeff_indices<iganet::functionspace::interior>(
+                  knot_indices_);
 
       return true;
     } else
@@ -100,13 +103,15 @@ public:
       // If the batch size is larger than one we need to expand the symbolically
       // evaluated reference data
       return torch::mse_loss(
-          *Base::template output<0>().eval(collPts_.first, knot_indices_, coeff_indices_)[0],
+          *Base::template output<0>().eval(collPts_.first, knot_indices_,
+                                           coeff_indices_)[0],
           (sin(M_PI * collPts_.first[0]) * sin(M_PI * collPts_.first[1]))
               .expand({outputs.size(0), -1})
               .t());
     else
       return torch::mse_loss(
-          *Base::template output<0>().eval(collPts_.first, knot_indices_, coeff_indices_)[0],
+          *Base::template output<0>().eval(collPts_.first, knot_indices_,
+                                           coeff_indices_)[0],
           (sin(M_PI * collPts_.first[0]) * sin(M_PI * collPts_.first[1])));
   }
 };
@@ -136,12 +141,13 @@ int main() {
 
   // Geometry: Bi-linear B-spline function space S (geoDim = 2, p = q = 2)
   using geometry_t = iganet::S<iganet::UniformBSpline<real_t, 2, 2, 2>>;
-  
+
   // Inputs: <geometry_t>
   using inputs_t = std::tuple<geometry_t>;
 
   // Outputs: Bi-quadratic B-spline function space S (geoDim = 1, p = q = 2)
-  using outputs_t = std::tuple<iganet::S<iganet::UniformBSpline<real_t, 1, 2, 2>>>;
+  using outputs_t =
+      std::tuple<iganet::S<iganet::UniformBSpline<real_t, 1, 2, 2>>>;
 
   // Create geometry data set for training
   iganet::IgADataset<> dataset;
@@ -257,11 +263,11 @@ int main() {
           // Plot the solution
           net.template input<0>()
               .space()
-            .plot(net.template output<0>().space(),
+              .plot(net.template output<0>().space(),
                     std::array<torch::Tensor, 2>{*colPts[0], *colPts[1]}, json)
               ->show();
 #endif
-          
+
 #ifdef IGANET_WITH_GISMO
           // Convert B-spline objects to G+Smo
           auto G_gismo = net.template input<0>().space().to_gismo();

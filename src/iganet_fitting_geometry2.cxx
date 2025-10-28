@@ -42,13 +42,13 @@ private:
   using Base = iganet::IgANet2<Optimizer, Inputs, Outputs>;
 
   /// @brief Collocation points
-  typename Base::template collPts_t<0> collPts_;  
+  typename Base::template collPts_t<0> collPts_;
 
   /// @brief Type of the customizable class
   using Customizable = iganet::IgANetCustomizable2<Inputs, Outputs>;
 
   /// @brief Knot indices
-  Customizable::template output_interior_knot_indices_t<0> knot_indices_;  
+  Customizable::template output_interior_knot_indices_t<0> knot_indices_;
 
   /// @brief Coefficient indices
   Customizable::template output_interior_coeff_indices_t<0> coeff_indices_;
@@ -71,12 +71,15 @@ public:
     // not change the inputs nor the variable function space.
     if (epoch == 0) {
       Base::inputs(epoch);
-      collPts_
-        = Base::template collPts<0>(iganet::collPts::greville);      
+      collPts_ = Base::template collPts<0>(iganet::collPts::greville);
       knot_indices_ =
-        Base::template output<0>().template find_knot_indices<iganet::functionspace::interior>(collPts_.first);
+          Base::template output<0>()
+              .template find_knot_indices<iganet::functionspace::interior>(
+                  collPts_.first);
       coeff_indices_ =
-        Base::template output<0>().template find_coeff_indices<iganet::functionspace::interior>(knot_indices_);
+          Base::template output<0>()
+              .template find_coeff_indices<iganet::functionspace::interior>(
+                  knot_indices_);
 
       return true;
     } else
@@ -97,7 +100,8 @@ public:
 
     // Evaluate the loss function
     return torch::mse_loss(
-        *Base::template output<0>().eval(collPts_.first, knot_indices_, coeff_indices_)[0],
+        *Base::template output<0>().eval(collPts_.first, knot_indices_,
+                                         coeff_indices_)[0],
         sin(M_PI * collPts_.first[0]) * sin(M_PI * collPts_.first[1]));
   }
 };
@@ -122,10 +126,12 @@ int main() {
   // Inputs: Bivariate uniform B-spline of degree 2 in both directions
   // the type has to correspond to the respective geometry
   // parameterization in the input file
-  using inputs_t = std::tuple<iganet::S<iganet::UniformBSpline<real_t, 2, 2, 2>>>;
+  using inputs_t =
+      std::tuple<iganet::S<iganet::UniformBSpline<real_t, 2, 2, 2>>>;
 
   // Outputs: Bi-quadratic B-spline function space S (geoDim = 1, p = q = 2)
-  using outputs_t = std::tuple<iganet::S<iganet::UniformBSpline<real_t, 1, 2, 2>>>;
+  using outputs_t =
+      std::tuple<iganet::S<iganet::UniformBSpline<real_t, 1, 2, 2>>>;
 
   // Loop over user-definded number of coefficients (default 32)
   for (int64_t ncoeffs : iganet::utils::getenv("IGANET_NCOEFFS", {32})) {
@@ -194,7 +200,7 @@ int main() {
           // Plot the solution
           net.template input<0>()
               .space()
-            .plot(net.template output<0>().space(),
+              .plot(net.template output<0>().space(),
                     std::array<torch::Tensor, 2>{*colPts[0], *colPts[1]}, json)
               ->show();
 #endif

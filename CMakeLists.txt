@@ -37,16 +37,16 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
       iganet_core
       GIT_REPOSITORY https://github.com/iganets/iganet.git
     )
-  else()  
+  else()
     FetchContent_Declare(
       iganet_core
       URL https://github.com/iganets/iganet/archive/refs/heads/master.zip
     )
   endif()
-     
+
   FetchContent_MakeAvailable(iganet_core)
   FetchContent_GetProperties(iganet_core)
-  
+
   ######################################################################
   # Set C++ standard
   ######################################################################
@@ -71,5 +71,5 @@ foreach(source ${SOURCES})
 
   target_compile_options(${name} PRIVATE "-DIGANET_DATA_DIR=\"${PROJECT_SOURCE_DIR}/filedata/\"")
   target_link_libraries(${name} PRIVATE iganet::core)
-  
+
 endforeach()

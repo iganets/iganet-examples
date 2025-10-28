@@ -31,7 +31,7 @@ private:
   using Base = iganet::IgANet2<Optimizer, Inputs, Outputs>;
 
   /// @brief Collocation points
-  Base::template collPts_t<0> collPts_;  
+  Base::template collPts_t<0> collPts_;
 
   /// @brief Reference solution
   Base::template input_t<1> ref_;
@@ -58,9 +58,9 @@ public:
           const std::vector<std::vector<std::any>> &activations,
           const std::array<int64_t, GeometryMapNumCoeffs> &geometryMapNumCoeffs,
           const std::array<int64_t, VariableNumCoeffs> &variableNumCoeffs)
-    : Base(layers, activations,
-           std::make_tuple(geometryMapNumCoeffs, variableNumCoeffs),
-           std::make_tuple(variableNumCoeffs)),
+      : Base(layers, activations,
+             std::make_tuple(geometryMapNumCoeffs, variableNumCoeffs),
+             std::make_tuple(variableNumCoeffs)),
         ref_(variableNumCoeffs) {}
 
   /// @brief Returns a constant reference to the collocation points
@@ -83,7 +83,7 @@ public:
 
   /// @brief Returns a non-constant reference to the solution
   auto &u() { return Base::template output<0>(); }
-  
+
   /// @brief Initializes the epoch
   ///
   /// @param[in] epoch Epoch number
@@ -98,18 +98,22 @@ public:
       collPts_ = Base::template collPts<0>(iganet::collPts::greville_ref1);
 
       var_knot_indices_ =
-        Base::template output<0>().template find_knot_indices<iganet::functionspace::interior>(
-              collPts_.first);
+          Base::template output<0>()
+              .template find_knot_indices<iganet::functionspace::interior>(
+                  collPts_.first);
       var_coeff_indices_ =
-        Base::template output<0>().template  find_coeff_indices<iganet::functionspace::interior>(
-              var_knot_indices_);
+          Base::template output<0>()
+              .template find_coeff_indices<iganet::functionspace::interior>(
+                  var_knot_indices_);
 
       G_knot_indices_ =
-        Base::template input<0>(). template find_knot_indices<iganet::functionspace::interior>(
-              collPts_.first);
+          Base::template input<0>()
+              .template find_knot_indices<iganet::functionspace::interior>(
+                  collPts_.first);
       G_coeff_indices_ =
-        Base::template input<0>(). template find_coeff_indices<iganet::functionspace::interior>(
-              G_knot_indices_);
+          Base::template input<0>()
+              .template find_coeff_indices<iganet::functionspace::interior>(
+                  G_knot_indices_);
 
       return true;
     } else
@@ -129,19 +133,16 @@ public:
     Base::outputs(outputs);
 
     // Evaluate the Laplacian operator
-    auto u_ilapl =
-      Base::template output<0>().ilapl(Base::template input<0>(),
-                                       collPts_.first,
-                                       var_knot_indices_, var_coeff_indices_,
-                                       G_knot_indices_, G_coeff_indices_);
+    auto u_ilapl = Base::template output<0>().ilapl(
+        Base::template input<0>(), collPts_.first, var_knot_indices_,
+        var_coeff_indices_, G_knot_indices_, G_coeff_indices_);
 
-    auto f =
-      Base::template input<1>().eval(collPts_.first,
-                                     var_knot_indices_, var_coeff_indices_);
-    
+    auto f = Base::template input<1>().eval(collPts_.first, var_knot_indices_,
+                                            var_coeff_indices_);
+
     auto u_bdr =
-      Base::template output<0>().template eval<iganet::functionspace::boundary>(
-                                                                              collPts_.second);
+        Base::template output<0>()
+            .template eval<iganet::functionspace::boundary>(collPts_.second);
 
     auto bdr =
         ref_.template eval<iganet::functionspace::boundary>(collPts_.second);
@@ -173,19 +174,18 @@ int main() {
 
   using inputs_t = std::tuple<geometry_t, variable_t>;
   using outputs_t = std::tuple<variable_t>;
-  
-  poisson<optimizer_t, inputs_t, outputs_t>
-      net( // Number of neurons per layers
-          {120, 120},
-          // Activation functions
-          {{iganet::activation::sigmoid},
-           {iganet::activation::sigmoid},
-           {iganet::activation::none}},
-          // Number of B-spline coefficients of the geometry, just [0,1] x [0,1]
-          iganet::utils::to_array(2_i64, 2_i64),
-          // Number of B-spline coefficients of the variable
-          iganet::utils::to_array(10_i64, 10_i64));
-  
+
+  poisson<optimizer_t, inputs_t, outputs_t> net( // Number of neurons per layers
+      {120, 120},
+      // Activation functions
+      {{iganet::activation::sigmoid},
+       {iganet::activation::sigmoid},
+       {iganet::activation::none}},
+      // Number of B-spline coefficients of the geometry, just [0,1] x [0,1]
+      iganet::utils::to_array(2_i64, 2_i64),
+      // Number of B-spline coefficients of the variable
+      iganet::utils::to_array(10_i64, 10_i64));
+
   // Impose the negative of the second derivative of sin(M_PI*x) *
   // sin(M_PI*y) as right-hand side vector (manufactured solution)
   net.template input<1>().transform([](const std::array<real_t, 2> xi) {

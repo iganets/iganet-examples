@@ -45,7 +45,7 @@ private:
   using Customizable = iganet::IgANetCustomizable2<Inputs, Outputs>;
 
   /// @brief Knot indices
-  Customizable::template output_interior_knot_indices_t<0> knot_indices_;  
+  Customizable::template output_interior_knot_indices_t<0> knot_indices_;
 
   /// @brief Coefficient indices
   Customizable::template output_interior_coeff_indices_t<0> coeff_indices_;
@@ -68,12 +68,15 @@ public:
     // not change the inputs nor the variable function space.
     if (epoch == 0) {
       Base::inputs(epoch);
-      collPts_
-        = Base::template collPts<0>(iganet::collPts::greville);      
+      collPts_ = Base::template collPts<0>(iganet::collPts::greville);
       knot_indices_ =
-        Base::template output<0>().template find_knot_indices<iganet::functionspace::interior>(collPts_.first);
+          Base::template output<0>()
+              .template find_knot_indices<iganet::functionspace::interior>(
+                  collPts_.first);
       coeff_indices_ =
-        Base::template output<0>().template find_coeff_indices<iganet::functionspace::interior>(knot_indices_);
+          Base::template output<0>()
+              .template find_coeff_indices<iganet::functionspace::interior>(
+                  knot_indices_);
 
       return true;
     } else
@@ -94,8 +97,9 @@ public:
 
     // Evaluate the loss function
     return torch::mse_loss(
-                           *Base::template output<0>().eval(collPts_.first, knot_indices_, coeff_indices_)[0],
-                           sin(M_PI * collPts_.first[0]) * sin(M_PI * collPts_.first[1]));
+        *Base::template output<0>().eval(collPts_.first, knot_indices_,
+                                         coeff_indices_)[0],
+        sin(M_PI * collPts_.first[0]) * sin(M_PI * collPts_.first[1]));
   }
 };
 
@@ -113,10 +117,12 @@ int main() {
   using real_t = double;
 
   // Inputs: Bi-linear B-spline function space S (geoDim = 2, p = q = 1)
-  using inputs_t = std::tuple<iganet::S<iganet::UniformBSpline<real_t, 2, 1, 1>>>;
+  using inputs_t =
+      std::tuple<iganet::S<iganet::UniformBSpline<real_t, 2, 1, 1>>>;
 
   // Outputs: Bi-quadratic B-spline function space S (geoDim = 1, p = q = 2)
-  using outputs_t = std::tuple<iganet::S<iganet::UniformBSpline<real_t, 1, 2, 2>>>;
+  using outputs_t =
+      std::tuple<iganet::S<iganet::UniformBSpline<real_t, 1, 2, 2>>>;
 
   // Loop over user-definded number of coefficients (default 32)
   for (int64_t ncoeffs : iganet::utils::getenv("IGANET_NCOEFFS", {32})) {
@@ -135,16 +141,15 @@ int main() {
               std::vector<std::any>{iganet::activation::none});
 
           fitting<optimizer_t, inputs_t, outputs_t>
-            net( // Number of neurons per layers
-                 layers,
-                 // Activation functions
-                 activations,
-                 // Number of B-spline coefficients of the inputs (=geometry), just [0,1]
-                 // x [0,1]
-                 std::tuple{iganet::utils::to_array(2_i64, 2_i64)},
-                 // Number of B-spline coefficients of the outputs (=solution)
-                 std::tuple{iganet::utils::to_array(ncoeffs, ncoeffs)}
-                 );
+              net( // Number of neurons per layers
+                  layers,
+                  // Activation functions
+                  activations,
+                  // Number of B-spline coefficients of the inputs (=geometry),
+                  // just [0,1] x [0,1]
+                  std::tuple{iganet::utils::to_array(2_i64, 2_i64)},
+                  // Number of B-spline coefficients of the outputs (=solution)
+                  std::tuple{iganet::utils::to_array(ncoeffs, ncoeffs)});
 
           iganet::Log(iganet::log::info)
               << "#coeff per direction: " << ncoeffs << ", #layers: " << nlayers
@@ -178,7 +183,7 @@ int main() {
           // Plot the solution
           net.template input<0>()
               .space()
-            .plot(net.template output<0>().space(), net.collPts().first, json)
+              .plot(net.template output<0>().space(), net.collPts().first, json)
               ->show();
 #endif
 

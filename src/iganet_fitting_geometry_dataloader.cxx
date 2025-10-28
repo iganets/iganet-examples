@@ -261,7 +261,7 @@ int main() {
                     std::array<torch::Tensor, 2>{*colPts[0], *colPts[1]}, json)
               ->show();
 #endif
-          
+
 #ifdef IGANET_WITH_GISMO
           // Convert B-spline objects to G+Smo
           auto G_gismo = net.G().space().to_gismo();
