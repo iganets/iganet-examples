@@ -15,6 +15,8 @@
    IGANET_NNEURONS  - number of neurons per layer
    IGANET_MAX_EPOCH - maximum number of epochs during training
    IGANET_MIN_LOSS  - tolerance for loss function
+   IGANET_MIN_LOSS_CHANGE      - tolerance for loss function change
+   IGANET_MIN_LOSS_REL_CHANGE  - tolerance for loss function relative change
 
    @author Matthias Moller
 
@@ -230,6 +232,10 @@ int main() {
           // Set tolerance for the loss functions
           net.options().min_loss(
               iganet::utils::getenv("IGANET_MIN_LOSS", 1e-12));
+          net.options().min_loss_change(
+              iganet::utils::getenv("IGANET_MIN_LOSS_CHANGE", 0.0));
+          net.options().min_loss_rel_change(
+              iganet::utils::getenv("IGANET_MIN_LOSS_REL_CHANGE", 1e-3));
 
           // Start time measurement
           auto t1 = std::chrono::high_resolution_clock::now();

@@ -7,6 +7,13 @@
    learning the Poisson equation with (non-)homogeneous Dirichlet
    boundary conditions on a square geometry.
 
+   This example can be configured with the following environment variables
+
+   IGANET_MAX_EPOCH            - maximum number of epochs during training
+   IGANET_MIN_LOSS             - tolerance for loss function
+   IGANET_MIN_LOSS_CHANGE      - tolerance for loss function change
+   IGANET_MIN_LOSS_REL_CHANGE  - tolerance for loss function relative change
+
    @author Matthias Moller
 
    @copyright This file is part of the IgANet project
@@ -221,10 +228,14 @@ int main() {
       });
 
   // Set maximum number of epochs
-  net.options().max_epoch(200);
+  net.options().max_epoch(iganet::utils::getenv("IGANET_MAX_EPOCH", 200_i64));
 
-  // Set tolerance for the loss functions
-  net.options().min_loss(1e-8);
+  // Set tolerances for the loss functions
+  net.options().min_loss(iganet::utils::getenv("IGANET_MIN_LOSS", 1e-8));
+  net.options().min_loss_change(
+      iganet::utils::getenv("IGANET_MIN_LOSS_CHANGE", 0.0));
+  net.options().min_loss_rel_change(
+      iganet::utils::getenv("IGANET_MIN_LOSS_REL_CHANGE", 1e-3));
 
   // Start time measurement
   auto t1 = std::chrono::high_resolution_clock::now();
