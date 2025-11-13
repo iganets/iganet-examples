@@ -59,7 +59,7 @@ endif()
 ########################################################################
 # Collect sources
 ########################################################################
-file(GLOB SOURCES src/*.cxx)
+file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cxx)
 
 foreach(source ${SOURCES})
 
@@ -72,9 +72,6 @@ foreach(source ${SOURCES})
 
   target_compile_options(${name} PRIVATE "-DIGANET_DATA_DIR=\"${PROJECT_SOURCE_DIR}/filedata/\"")
   target_link_libraries(${name} PRIVATE iganet::core)
-
-  target_include_directories(${name}
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src
-  )
+  target_link_libraries(${name} PRIVATE iganet::examples)
   
 endforeach()
