@@ -28,6 +28,7 @@
 */
 
 #include <chrono>
+#include <common.hpp>
 #include <iganet.h>
 #include <iostream>
 
@@ -263,7 +264,7 @@ int main() {
 #ifdef IGANET_WITH_MATPLOT
           // Load XML file
           pugi::xml_document xml;
-          xml.load_file(IGANET_DATA_DIR "surfaces/2d/geo02.xml");
+	  xml.load_file(iganet::getDataPath("surfaces/2d/geo02.xml").c_str());
 
           // Load geometry parameterization from XML
           net.G().from_xml(xml);

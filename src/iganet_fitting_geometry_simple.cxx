@@ -29,6 +29,7 @@
 */
 
 #include <chrono>
+#include <common.hpp>
 #include <iganet.h>
 #include <iostream>
 
@@ -105,7 +106,7 @@ int main() {
 
   // Load XML file
   pugi::xml_document xml;
-  xml.load_file(IGANET_DATA_DIR "surfaces/2d/geo02.xml");
+  xml.load_file(iganet::getDataPath("surfaces/2d/geo02.xml").c_str());
 
   // Bivariate uniform B-spline of degree 2 in both directions
   // the type has to correspond to the respective geometry parameterization in

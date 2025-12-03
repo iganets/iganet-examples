@@ -25,7 +25,7 @@ project(IgANet-Examples)
 
 add_library(iganet_examples INTERFACE)
 add_library(iganet::examples ALIAS iganet_examples)
-target_include_directories(iganet_examples INTERFACE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+target_include_directories(iganet_examples INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/src)
 
 ########################################################################
 # IgANets (core)
@@ -71,11 +71,20 @@ foreach(source ${SOURCES})
     target_precompile_headers(${name} REUSE_FROM iganet_pch)
   endif()
 
-  target_compile_options(${name} PRIVATE "-DIGANET_DATA_DIR=\"${PROJECT_SOURCE_DIR}/filedata/\"")
   target_link_libraries(${name} PRIVATE iganet::core)
 
   target_include_directories(${name}
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src
   )
-  
+
 endforeach()
+
+########################################################################
+# Install data files
+########################################################################
+include(GNUInstallDirs)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/filedata/
+	DESTINATION ${CMAKE_INSTALL_DATADIR}/iganet/examples/filedata
+)
+

@@ -12,6 +12,7 @@
    file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
+#include <common.hpp>
 #include <iganet.h>
 #include <iostream>
 
@@ -25,7 +26,7 @@ int main() {
 
   // Load XML file
   pugi::xml_document xml;
-  xml.load_file(IGANET_DATA_DIR "surfaces/2d/geo03.xml");
+  xml.load_file(iganet::getDataPath("surfaces/2d/geo03.xml").c_str());
 
   // Load B-spline from XML object
   bspline.from_xml(xml);
