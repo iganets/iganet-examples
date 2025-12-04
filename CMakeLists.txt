@@ -25,7 +25,7 @@ project(IgANet-Examples)
 
 add_library(iganet_examples INTERFACE)
 add_library(iganet::examples ALIAS iganet_examples)
-target_include_directories(iganet_examples INTERFACE ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+target_include_directories(iganet_examples INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/src)
 
 ########################################################################
 # IgANets (core)
@@ -59,18 +59,43 @@ endif()
 ########################################################################
 # Collect sources
 ########################################################################
+include(GNUInstallDirs)
+
 file(GLOB SOURCES src/*.cxx)
 
 foreach(source ${SOURCES})
 
   get_filename_component(name ${source} NAME_WE)
   add_executable(${name} ${source})
+  install(TARGETS ${name} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
   if(IGANET_BUILD_PCH AND NOT WIN32 AND NOT ${CMAKE_VERSION} VERSION_LESS "3.16.0")
     target_precompile_headers(${name} REUSE_FROM iganet_pch)
   endif()
 
-  target_compile_options(${name} PRIVATE "-DIGANET_DATA_DIR=\"${PROJECT_SOURCE_DIR}/filedata/\"")
   target_link_libraries(${name} PRIVATE iganet::core)
 
+  target_include_directories(${name}
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src
+  )
+
 endforeach()
+
+########################################################################
+# Create symbolic link to data files
+########################################################################
+file(MAKE_DIRECTORY
+  ${CMAKE_CURRENT_BINARY_DIR}/../${CMAKE_INSTALL_DATADIR}/iganet/examples
+)
+execute_process(
+  COMMAND ${CMAKE_COMMAND} -E create_symlink
+          ${CMAKE_CURRENT_SOURCE_DIR}/filedata
+          ${CMAKE_CURRENT_BINARY_DIR}/../${CMAKE_INSTALL_DATADIR}/iganet/examples/filedata
+)
+
+########################################################################
+# Install data files
+########################################################################
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/filedata/
+	DESTINATION ${CMAKE_INSTALL_DATADIR}/iganet/examples/filedata
+)

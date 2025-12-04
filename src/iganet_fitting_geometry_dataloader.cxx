@@ -28,6 +28,7 @@
 */
 
 #include <chrono>
+#include <common.hpp>
 #include <iganet.h>
 #include <iostream>
 
@@ -148,7 +149,7 @@ int main() {
   // Create geometry data set for training
   iganet::IgADataset<> dataset;
   dataset.add_geometryMap(geometry_t{iganet::utils::to_array(25_i64, 25_i64)},
-                          IGANET_DATA_DIR "surfaces/2d");
+                          iganet::getDataPath("surfaces/2d").c_str());
 
   // Create data set
   auto train_dataset = dataset.map(
@@ -249,7 +250,7 @@ int main() {
 #ifdef IGANET_WITH_MATPLOT
           // Load XML file
           pugi::xml_document xml;
-          xml.load_file(IGANET_DATA_DIR "surfaces/2d/geo02.xml");
+	  xml.load_file(iganet::getDataPath("surfaces/2d/geo02.xml").c_str());	  
 
           // Load geometry parameterization from XML
           net.G().from_xml(xml);
