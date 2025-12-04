@@ -1,5 +1,5 @@
 /**
-   @file include/common.hpp
+   @file src/common.hpp
 
    @brief IGANets common helper functions
 
