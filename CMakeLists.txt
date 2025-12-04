@@ -59,13 +59,15 @@ endif()
 ########################################################################
 # Collect sources
 ########################################################################
+include(GNUInstallDirs)
+
 file(GLOB SOURCES src/*.cxx)
 
 foreach(source ${SOURCES})
 
   get_filename_component(name ${source} NAME_WE)
   add_executable(${name} ${source})
-  install(TARGETS ${name} RUNTIME DESTINATION bin)
+  install(TARGETS ${name} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
   if(IGANET_BUILD_PCH AND NOT WIN32 AND NOT ${CMAKE_VERSION} VERSION_LESS "3.16.0")
     target_precompile_headers(${name} REUSE_FROM iganet_pch)
@@ -82,8 +84,6 @@ endforeach()
 ########################################################################
 # Install data files
 ########################################################################
-include(GNUInstallDirs)
-
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/filedata/
 	DESTINATION ${CMAKE_INSTALL_DATADIR}/iganet/examples/filedata
 )
