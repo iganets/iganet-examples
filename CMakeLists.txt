@@ -82,9 +82,20 @@ foreach(source ${SOURCES})
 endforeach()
 
 ########################################################################
+# Create symbolic link to data files
+########################################################################
+file(MAKE_DIRECTORY
+  ${CMAKE_CURRENT_BINARY_DIR}/../${CMAKE_INSTALL_DATADIR}/iganet/examples
+)
+execute_process(
+  COMMAND ${CMAKE_COMMAND} -E create_symlink
+          ${CMAKE_CURRENT_SOURCE_DIR}/filedata
+          ${CMAKE_CURRENT_BINARY_DIR}/../${CMAKE_INSTALL_DATADIR}/iganet/examples/filedata
+)
+
+########################################################################
 # Install data files
 ########################################################################
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/filedata/
 	DESTINATION ${CMAKE_INSTALL_DATADIR}/iganet/examples/filedata
 )
-
