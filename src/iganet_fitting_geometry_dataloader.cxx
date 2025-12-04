@@ -149,7 +149,7 @@ int main() {
   // Create geometry data set for training
   iganet::IgADataset<> dataset;
   dataset.add_geometryMap(geometry_t{iganet::utils::to_array(25_i64, 25_i64)},
-                          IGANET_DATA_DIR "surfaces/2d");
+                          iganet::getDataPath("surfaces/2d").c_str());
 
   // Create data set
   auto train_dataset = dataset.map(
