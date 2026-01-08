@@ -37,18 +37,18 @@
 
 /// @brief Specialization of the abstract IgANet class for function fitting
 template <typename Optimizer, typename Inputs, typename Outputs>
-class fitting : public iganet::IgANet2<Optimizer, Inputs, Outputs>,
-                public iganet::IgANetCustomizable2<Inputs, Outputs> {
+class fitting : public iganet::IgANet<Optimizer, Inputs, Outputs>,
+                public iganet::IgANetCustomizable<Inputs, Outputs> {
 
 private:
   /// @brief Type of the base class
-  using Base = iganet::IgANet2<Optimizer, Inputs, Outputs>;
+  using Base = iganet::IgANet<Optimizer, Inputs, Outputs>;
 
   /// @brief Collocation points
   typename Base::template collPts_t<0> collPts_;
 
   /// @brief Type of the customizable class
-  using Customizable = iganet::IgANetCustomizable2<Inputs, Outputs>;
+  using Customizable = iganet::IgANetCustomizable<Inputs, Outputs>;
 
   /// @brief Knot indices
   Customizable::template output_interior_knot_indices_t<0> knot_indices_;
@@ -58,7 +58,7 @@ private:
 
 public:
   /// @brief Constructors from the base class
-  using iganet::IgANet2<Optimizer, Inputs, Outputs>::IgANet2;
+  using iganet::IgANet<Optimizer, Inputs, Outputs>::IgANet;
 
   /// @brief Returns a constant reference to the collocation points
   auto const &collPts() const { return collPts_; }

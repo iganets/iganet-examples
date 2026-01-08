@@ -30,12 +30,12 @@ using namespace iganet::literals;
 
 /// @brief Specialization of the abstract IgANet class for Poisson's equation
 template <typename Optimizer, typename GeometryMap, typename Variable>
-class poisson : public iganet::IgANet<Optimizer, GeometryMap, Variable>,
-                public iganet::IgANetCustomizable<GeometryMap, Variable> {
+class poisson : public iganet::v1::IgANet<Optimizer, GeometryMap, Variable>,
+                public iganet::v1::IgANetCustomizable<GeometryMap, Variable> {
 
 private:
   /// @brief Type of the base class
-  using Base = iganet::IgANet<Optimizer, GeometryMap, Variable>;
+  using Base = iganet::v1::IgANet<Optimizer, GeometryMap, Variable>;
 
   /// @brief Collocation points
   typename Base::variable_collPts_type collPts_;
@@ -44,7 +44,7 @@ private:
   Variable ref_;
 
   /// @brief Type of the customizable class
-  using Customizable = iganet::IgANetCustomizable<GeometryMap, Variable>;
+  using Customizable = iganet::v1::IgANetCustomizable<GeometryMap, Variable>;
 
   /// @brief Knot indices of variables
   typename Customizable::variable_interior_knot_indices_type var_knot_indices_;
@@ -60,6 +60,8 @@ private:
   typename Customizable::geometryMap_interior_coeff_indices_type
       G_coeff_indices_;
 
+  torch::Tensor log_sigma_pde_, log_sigma_bdr_;
+  
 public:
   /// @brief Constructor
   template <std::size_t GeometryMapNumCoeffs, std::size_t VariableNumCoeffs>
@@ -73,7 +75,12 @@ public:
                  geometryMapNumCoeffs),
              std::forward<std::array<int64_t, VariableNumCoeffs>>(
                  variableNumCoeffs)),
-        ref_(variableNumCoeffs) {}
+        ref_(variableNumCoeffs),
+        log_sigma_pde_(this->register_parameter("log_sigma_pde", torch::zeros({1}, torch::requires_grad(true)))),
+        log_sigma_bdr_(this->register_parameter("log_sigma_bdr", torch::zeros({1}, torch::requires_grad(true))))
+  {
+    this->optimizerReset();
+  }
 
   /// @brief Returns a constant reference to the collocation points
   auto const &collPts() const { return collPts_; }
@@ -142,12 +149,18 @@ public:
     auto bdr =
         ref_.template eval<iganet::functionspace::boundary>(collPts_.second);
 
+    std::cout << std::exp(-2.0 * log_sigma_pde_.item<double>())
+              << ", "
+              << std::exp(-2.0 * log_sigma_bdr_.item<double>()) << std::endl;
+    
     // Evaluate the loss function
-    return torch::mse_loss(*u_ilapl[0], *f[0]) +
-           1e1 * torch::mse_loss(*std::get<0>(u_bdr)[0], *std::get<0>(bdr)[0]) +
-           1e1 * torch::mse_loss(*std::get<1>(u_bdr)[0], *std::get<1>(bdr)[0]) +
-           1e1 * torch::mse_loss(*std::get<2>(u_bdr)[0], *std::get<2>(bdr)[0]) +
-           1e1 * torch::mse_loss(*std::get<3>(u_bdr)[0], *std::get<3>(bdr)[0]);
+    return
+      torch::exp(-2.0 * log_sigma_pde_) * torch::mse_loss(*u_ilapl[0], *f[0]) +
+      torch::exp(-2.0 * log_sigma_bdr_) * torch::mse_loss(*std::get<0>(u_bdr)[0], *std::get<0>(bdr)[0]) +
+      torch::exp(-2.0 * log_sigma_bdr_) * torch::mse_loss(*std::get<1>(u_bdr)[0], *std::get<1>(bdr)[0]) +
+      torch::exp(-2.0 * log_sigma_bdr_) * torch::mse_loss(*std::get<2>(u_bdr)[0], *std::get<2>(bdr)[0]) +
+      torch::exp(-2.0 * log_sigma_bdr_) * torch::mse_loss(*std::get<3>(u_bdr)[0], *std::get<3>(bdr)[0]) +
+      log_sigma_pde_ + log_sigma_bdr_;
   }
 };
 

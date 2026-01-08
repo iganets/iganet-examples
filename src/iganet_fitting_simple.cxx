@@ -33,21 +33,21 @@
 
 /// @brief Specialization of the abstract IgANet class for function fitting
 template <typename Optimizer, typename GeometryMap, typename Variable>
-class fitting : public iganet::IgANet<Optimizer, GeometryMap, Variable,
-                                      iganet::IgABaseNoRefData> {
+class fitting : public iganet::v1::IgANet<Optimizer, GeometryMap, Variable,
+                                          iganet::v1::IgABaseNoRefData> {
 
 private:
   /// @brief Type of the base class
-  using Base = iganet::IgANet<Optimizer, GeometryMap, Variable,
-                              iganet::IgABaseNoRefData>;
+  using Base = iganet::v1::IgANet<Optimizer, GeometryMap, Variable,
+                                  iganet::v1::IgABaseNoRefData>;
 
   /// @brief Collocation points
   typename Base::variable_collPts_type collPts_;
 
 public:
   /// @brief Constructors from the base class
-  using iganet::IgANet<Optimizer, GeometryMap, Variable,
-                       iganet::IgABaseNoRefData>::IgANet;
+  using iganet::v1::IgANet<Optimizer, GeometryMap, Variable,
+                           iganet::v1::IgABaseNoRefData>::IgANet;
 
   /// @brief Returns a constant reference to the collocation points
   auto const &collPts() const { return collPts_; }

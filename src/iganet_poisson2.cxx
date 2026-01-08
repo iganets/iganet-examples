@@ -27,15 +27,17 @@
 #include <iostream>
 
 using namespace iganet::literals;
+using namespace torch::indexing;
+
 
 /// @brief Specialization of the abstract IgANet class for Poisson's equation
 template <typename Optimizer, typename Inputs, typename Outputs>
-class poisson : public iganet::IgANet2<Optimizer, Inputs, Outputs>,
-                public iganet::IgANetCustomizable2<Inputs, Outputs> {
+class poisson : public iganet::IgANet<Optimizer, Inputs, Outputs>,
+                public iganet::IgANetCustomizable<Inputs, Outputs> {
 
 private:
   /// @brief Type of the base class
-  using Base = iganet::IgANet2<Optimizer, Inputs, Outputs>;
+  using Base = iganet::IgANet<Optimizer, Inputs, Outputs>;
 
   /// @brief Collocation points
   Base::template collPts_t<0> collPts_;
@@ -44,7 +46,7 @@ private:
   Base::template input_t<1> ref_;
 
   /// @brief Type of the customizable class
-  using Customizable = iganet::IgANetCustomizable2<Inputs, Outputs>;
+  using Customizable = iganet::IgANetCustomizable<Inputs, Outputs>;
 
   /// @brief Knot indices of the geometry map
   Customizable::template input_interior_knot_indices_t<0> G_knot_indices_;
@@ -66,7 +68,7 @@ public:
           const std::array<int64_t, GeometryMapNumCoeffs> &geometryMapNumCoeffs,
           const std::array<int64_t, VariableNumCoeffs> &variableNumCoeffs)
       : Base(layers, activations,
-             std::make_tuple(geometryMapNumCoeffs, variableNumCoeffs),
+             std::make_tuple(geometryMapNumCoeffs, variableNumCoeffs, variableNumCoeffs),
              std::make_tuple(variableNumCoeffs)),
         ref_(variableNumCoeffs) {}
 
@@ -91,6 +93,12 @@ public:
   /// @brief Returns a non-constant reference to the right-hand side
   auto &f() { return Base::template input<1>(); }
 
+  /// @brief Returns a constant reference to the boundary
+  auto const &bdr() const { return Base::template input<2>(); }
+
+  /// @brief Returns a non-constant reference to the boundary
+  auto &bdr() { return Base::template input<2>(); }
+
   /// @brief Returns a constant reference to the solution
   auto const &u() const { return Base::template output<0>(); }
 
@@ -108,7 +116,8 @@ public:
     // not change the inputs nor the variable function space.
     if (epoch == 0) {
       Base::inputs(epoch);
-      collPts_ = Base::template collPts<0>(iganet::collPts::greville_ref1);
+      
+      collPts_ = Base::template collPts<0>(iganet::collPts::greville);
 
       var_knot_indices_ =
           u().template find_knot_indices<iganet::functionspace::interior>(
@@ -136,11 +145,16 @@ public:
   /// @param[in] epoch Epoch number
   torch::Tensor loss(const torch::Tensor &outputs, int64_t epoch) override {
 
+    Base::outputs(outputs);
+    
+    //    torch::Tensor outputs_tmp = torch::zeros({80, 80});
+    //    outputs_tmp.index({Slice(1, 79), Slice(1, 79)}).add_(outputs.clone().reshape({78, 78}));
+            
     // Cast the network output (a raw tensor) into the proper
     // function-space format, i.e. B-spline objects for the interior
     // and boundary parts that can be evaluated.
-    Base::outputs(outputs);
-
+    //    Base::outputs(outputs_tmp.clone().flatten());    
+    
     // Evaluate the Laplacian operator
     auto u_ilapl =
         u().ilapl(G(), collPts_.first, var_knot_indices_, var_coeff_indices_,
@@ -148,25 +162,26 @@ public:
 
     auto f =
         this->f().eval(collPts_.first, var_knot_indices_, var_coeff_indices_);
-
+    
     auto u_bdr =
-        u().template eval<iganet::functionspace::boundary>(collPts_.second);
-
+     u().template eval<iganet::functionspace::boundary>(collPts_.second);
+        
     auto bdr =
-        ref_.template eval<iganet::functionspace::boundary>(collPts_.second);
-
+      this->bdr().eval(collPts_.second);
+        
     // Evaluate the loss function
-    return torch::mse_loss(*u_ilapl[0], *f[0]) +
-           1e1 * torch::mse_loss(*std::get<0>(u_bdr)[0], *std::get<0>(bdr)[0]) +
-           1e1 * torch::mse_loss(*std::get<1>(u_bdr)[0], *std::get<1>(bdr)[0]) +
-           1e1 * torch::mse_loss(*std::get<2>(u_bdr)[0], *std::get<2>(bdr)[0]) +
-           1e1 * torch::mse_loss(*std::get<3>(u_bdr)[0], *std::get<3>(bdr)[0]);
+    return torch::mse_loss(*u_ilapl[0], *f[0])  +
+      1 * torch::mse_loss(*std::get<0>(u_bdr)[0], *std::get<0>(bdr)[0]) +
+      1 * torch::mse_loss(*std::get<1>(u_bdr)[0], *std::get<1>(bdr)[0]) +
+      1 * torch::mse_loss(*std::get<2>(u_bdr)[0], *std::get<2>(bdr)[0]) +
+      1 * torch::mse_loss(*std::get<3>(u_bdr)[0], *std::get<3>(bdr)[0]);
   }
 };
 
 int main() {
   iganet::init();
-  iganet::verbose(std::cout);
+  iganet::Log.setLogLevel(iganet::log::verbose);
+  //iganet::verbose(std::cout);
 
   nlohmann::json json;
   json["res0"] = 50;
@@ -178,64 +193,106 @@ int main() {
   using real_t = double;
 
   using geometry_t = iganet::S<iganet::UniformBSpline<real_t, 2, 1, 1>>;
-  using variable_t = iganet::S<iganet::UniformBSpline<real_t, 1, 2, 2>>;
+  using variable_t = iganet::S<iganet::UniformBSpline<real_t, 1, 3, 3>>;
 
-  using inputs_t = std::tuple<geometry_t, variable_t>;
+  using inputs_t = std::tuple<geometry_t, variable_t, variable_t::boundary_type>;
   using outputs_t = std::tuple<variable_t>;
 
+  int64_t ncoeffs = iganet::utils::getenv("IGANET_NCOEFFS", 10);
+  int64_t nlayers = iganet::utils::getenv("IGANET_NLAYERS", 2);
+  int64_t nneurons = iganet::utils::getenv("IGANET_NNEURONS", 120);
+
+  std::vector<int64_t> layers(nlayers, nneurons);
+  std::vector<std::vector<std::any>> activations(nlayers, std::vector<std::any>{iganet::activation::sigmoid});
+  activations.emplace_back(
+      std::vector<std::any>{iganet::activation::none});
+  
   poisson<optimizer_t, inputs_t, outputs_t> net( // Number of neurons per layers
-      {120, 120},
+      layers,
       // Activation functions
-      {{iganet::activation::sigmoid},
-       {iganet::activation::sigmoid},
-       {iganet::activation::none}},
+      activations,
       // Number of B-spline coefficients of the geometry, just [0,1] x [0,1]
       iganet::utils::to_array(2_i64, 2_i64),
       // Number of B-spline coefficients of the variable
-      iganet::utils::to_array(10_i64, 10_i64));
+      iganet::utils::to_array(ncoeffs, ncoeffs));
+
+  // Configure optimizer
+  auto options = net.optimizerOptions().line_search_fn("strong_wolfe").tolerance_grad(1e-9).tolerance_change(1e-12);
+  net.optimizerReset(options);
 
   // Impose the negative of the second derivative of sin(M_PI*x) *
-  // sin(M_PI*y) as right-hand side vector (manufactured solution)
-  net.f().transform([](const std::array<real_t, 2> xi) {
-    return std::array<real_t, 1>{-2.0 * M_PI * M_PI * sin(M_PI * xi[0]) *
-                                 sin(M_PI * xi[1])};
+  // sin(M_PI*y) as right-hand side vector (manufactured solution)  
+  net.f().space().coeffs(0) = iganet::ezinterp(net.G(), net.f(), []
+                                               (const std::array<torch::Tensor, 2> xi) {
+    return std::array<torch::Tensor, 1>{ -2.0 * M_PI * M_PI *
+                                         sin(M_PI * xi[0]) *
+                                         sin(M_PI * xi[1])};
   });
-
+  
   // Impose reference solution
-  net.ref().transform([](const std::array<real_t, 2> xi) {
-    return std::array<real_t, 1>{sin(M_PI * xi[0]) * sin(M_PI * xi[1])};
+  net.ref().space().coeffs(0) = iganet::ezinterp(net.G(), net.ref(), []
+                                                  (const std::array<torch::Tensor, 2> xi) {
+    return std::array<torch::Tensor, 1>{ sin(M_PI * xi[0]) *
+                                         sin(M_PI * xi[1])};
   });
+    
+  // Impose boundary conditions
+  net.bdr().side<iganet::side::west>().transform(
+      [](const std::array<real_t, 1> xi) {
+        return std::array<real_t, 1>{0.0};
+      });
+
+  net.bdr().side<iganet::side::east>().transform(
+      [](const std::array<real_t, 1> xi) {
+        return std::array<real_t, 1>{0.0};
+      });
+
+  net.bdr().side<iganet::side::south>().transform(
+      [](const std::array<real_t, 1> xi) {
+        return std::array<real_t, 1>{0.0};
+      });
+
+  net.bdr().side<iganet::side::north>().transform(
+      [](const std::array<real_t, 1> xi) {
+        return std::array<real_t, 1>{0.0};
+      });
 
   // Impose boundary conditions
-  net.ref().boundary().template side<1>().transform(
+  net.ref().boundary().side<iganet::side::west>().transform(
       [](const std::array<real_t, 1> xi) {
         return std::array<real_t, 1>{0.0};
       });
 
-  net.ref().boundary().template side<2>().transform(
+  net.ref().boundary().side<iganet::side::east>().transform(
       [](const std::array<real_t, 1> xi) {
         return std::array<real_t, 1>{0.0};
       });
 
-  net.ref().boundary().template side<3>().transform(
+  net.ref().boundary().side<iganet::side::south>().transform(
       [](const std::array<real_t, 1> xi) {
         return std::array<real_t, 1>{0.0};
       });
 
-  net.ref().boundary().template side<4>().transform(
+  net.ref().boundary().side<iganet::side::north>().transform(
       [](const std::array<real_t, 1> xi) {
         return std::array<real_t, 1>{0.0};
       });
+
+  iganet::Log(iganet::log::info)
+    << "#coeff per direction: " << ncoeffs
+    << ", #layers: " << nlayers
+    << ", #neurons: " << nneurons
+    << ", #parameters: " << net.nparameters() << std::endl;
 
   // Set maximum number of epochs
-  net.options().max_epoch(iganet::utils::getenv("IGANET_MAX_EPOCH", 200_i64));
+  net.options().max_epoch(iganet::utils::getenv("IGANET_MAX_EPOCH", 50_i64));
 
   // Set tolerances for the loss functions
-  net.options().min_loss(iganet::utils::getenv("IGANET_MIN_LOSS", 1e-8));
+  net.options().min_loss(iganet::utils::getenv("IGANET_MIN_LOSS", 1e-12));
   net.options().min_loss_change(
       iganet::utils::getenv("IGANET_MIN_LOSS_CHANGE", 0.0));
   net.options().min_loss_rel_change(
-      iganet::utils::getenv("IGANET_MIN_LOSS_REL_CHANGE", 1e-3));
+      iganet::utils::getenv("IGANET_MIN_LOSS_REL_CHANGE", 0.0));
 
   // Start time measurement
   auto t1 = std::chrono::high_resolution_clock::now();
@@ -251,18 +308,32 @@ int main() {
              .count()
       << " seconds\n";
 
+  std::cin.get();  
+  
 #ifdef IGANET_WITH_MATPLOT
   // Plot the solution
-  net.G().space().plot(net.u().space(), net.collPts().first, json)->show();
-
+  net.G().space().plot(net.u().space(), /*net.collPts().first,*/ json)->show();
+  
   // Plot the difference between the exact and predicted solutions
   net.G()
       .space()
-      .plot(net.ref().space().abs_diff(net.u().space()), net.collPts().first,
+    .plot(net.ref().space().abs_diff(net.u().space()), /*net.collPts().first,*/
             json)
       ->show();
 #endif
 
+  std::cout << "MSE net: " << net.ref().space().abs_diff(net.u().space()).norm() << std::endl;
+
+  // Impose collocation solution
+  net.u().space().coeffs(0) = iganet::ezpoisson(net.G(), net.u(), []
+                                                  (const std::array<torch::Tensor, 2> xi) {
+    return std::array<torch::Tensor, 1>{ -2.0 * M_PI * M_PI *
+                                         sin(M_PI * xi[0]) *
+                                         sin(M_PI * xi[1])};
+  });
+  
+  std::cout << "MSE solver: " << net.ref().space().abs_diff(net.u().space()).norm() << std::endl;
+  
   iganet::finalize();
   return 0;
 }
