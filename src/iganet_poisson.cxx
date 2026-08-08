@@ -13,6 +13,9 @@
    IGANET_MIN_LOSS             - tolerance for loss function
    IGANET_MIN_LOSS_CHANGE      - tolerance for loss function change
    IGANET_MIN_LOSS_REL_CHANGE  - tolerance for loss function relative change
+   IGANET_NCOEFFS              - number of unidirectional B-spline coefficients
+   IGANET_NLAYERS              - number of network layers
+   IGANET_NNEURONS             - number of neurons per layer
 
    @author Matthias Moller
 
@@ -60,27 +63,17 @@ private:
   typename Customizable::geometryMap_interior_coeff_indices_type
       G_coeff_indices_;
 
-  torch::Tensor log_sigma_pde_, log_sigma_bdr_;
   
 public:
   /// @brief Constructor
   template <std::size_t GeometryMapNumCoeffs, std::size_t VariableNumCoeffs>
-  poisson(std::vector<int64_t> &&layers,
-          std::vector<std::vector<std::any>> &&activations,
-          std::array<int64_t, GeometryMapNumCoeffs> &&geometryMapNumCoeffs,
-          std::array<int64_t, VariableNumCoeffs> &&variableNumCoeffs)
-      : Base(std::forward<std::vector<int64_t>>(layers),
-             std::forward<std::vector<std::vector<std::any>>>(activations),
-             std::forward<std::array<int64_t, GeometryMapNumCoeffs>>(
-                 geometryMapNumCoeffs),
-             std::forward<std::array<int64_t, VariableNumCoeffs>>(
-                 variableNumCoeffs)),
-        ref_(variableNumCoeffs),
-        log_sigma_pde_(this->register_parameter("log_sigma_pde", torch::zeros({1}, torch::requires_grad(true)))),
-        log_sigma_bdr_(this->register_parameter("log_sigma_bdr", torch::zeros({1}, torch::requires_grad(true))))
-  {
-    this->optimizerReset();
-  }
+  poisson(const std::vector<int64_t> &layers,
+          const std::vector<std::vector<std::any>> &activations,
+          const std::array<int64_t, GeometryMapNumCoeffs> &geometryMapNumCoeffs,
+          const std::array<int64_t, VariableNumCoeffs> &variableNumCoeffs)
+      : Base(layers, activations,
+             geometryMapNumCoeffs, variableNumCoeffs),
+        ref_(variableNumCoeffs) {}
 
   /// @brief Returns a constant reference to the collocation points
   auto const &collPts() const { return collPts_; }
@@ -102,7 +95,7 @@ public:
     // not change the inputs nor the variable function space.
     if (epoch == 0) {
       Base::inputs(epoch);
-      collPts_ = Base::variable_collPts(iganet::collPts::greville_ref1);
+      collPts_ = Base::variable_collPts(iganet::collPts::greville);
 
       var_knot_indices_ =
           Base::f_.template find_knot_indices<iganet::functionspace::interior>(
@@ -149,18 +142,12 @@ public:
     auto bdr =
         ref_.template eval<iganet::functionspace::boundary>(collPts_.second);
 
-    std::cout << std::exp(-2.0 * log_sigma_pde_.item<double>())
-              << ", "
-              << std::exp(-2.0 * log_sigma_bdr_.item<double>()) << std::endl;
-    
     // Evaluate the loss function
-    return
-      torch::exp(-2.0 * log_sigma_pde_) * torch::mse_loss(*u_ilapl[0], *f[0]) +
-      torch::exp(-2.0 * log_sigma_bdr_) * torch::mse_loss(*std::get<0>(u_bdr)[0], *std::get<0>(bdr)[0]) +
-      torch::exp(-2.0 * log_sigma_bdr_) * torch::mse_loss(*std::get<1>(u_bdr)[0], *std::get<1>(bdr)[0]) +
-      torch::exp(-2.0 * log_sigma_bdr_) * torch::mse_loss(*std::get<2>(u_bdr)[0], *std::get<2>(bdr)[0]) +
-      torch::exp(-2.0 * log_sigma_bdr_) * torch::mse_loss(*std::get<3>(u_bdr)[0], *std::get<3>(bdr)[0]) +
-      log_sigma_pde_ + log_sigma_bdr_;
+    return torch::mse_loss(*u_ilapl[0], *f[0])  +
+      1 * torch::mse_loss(*std::get<0>(u_bdr)[0], *std::get<0>(bdr)[0]) +
+      1 * torch::mse_loss(*std::get<1>(u_bdr)[0], *std::get<1>(bdr)[0]) +
+      1 * torch::mse_loss(*std::get<2>(u_bdr)[0], *std::get<2>(bdr)[0]) +
+      1 * torch::mse_loss(*std::get<3>(u_bdr)[0], *std::get<3>(bdr)[0]);
   }
 };
 
@@ -178,62 +165,84 @@ int main() {
   using real_t = double;
 
   using geometry_t = iganet::S<iganet::UniformBSpline<real_t, 2, 1, 1>>;
-  using variable_t = iganet::S<iganet::UniformBSpline<real_t, 1, 2, 2>>;
+  using variable_t = iganet::S<iganet::UniformBSpline<real_t, 1, 3, 3>>;
 
-  poisson<optimizer_t, geometry_t, variable_t>
-      net( // Number of neurons per layers
-          {120, 120},
-          // Activation functions
-          {{iganet::activation::sigmoid},
-           {iganet::activation::sigmoid},
-           {iganet::activation::none}},
-          // Number of B-spline coefficients of the geometry, just [0,1] x [0,1]
-          iganet::utils::to_array(2_i64, 2_i64),
-          // Number of B-spline coefficients of the variable
-          iganet::utils::to_array(10_i64, 10_i64));
+  int64_t ncoeffs = iganet::utils::getenv("IGANET_NCOEFFS", 10);
+  int64_t nlayers = iganet::utils::getenv("IGANET_NLAYERS", 2);
+  int64_t nneurons = iganet::utils::getenv("IGANET_NNEURONS", 120);
+
+  std::vector<int64_t> layers(nlayers, nneurons);
+  std::vector<std::vector<std::any>> activations(nlayers, std::vector<std::any>{iganet::activation::sigmoid});
+  activations.emplace_back(
+      std::vector<std::any>{iganet::activation::none});
+  poisson<optimizer_t, geometry_t, variable_t> net(
+      // Network layers
+      layers,
+      // Activation functions
+      activations,
+      // Number of B-spline coefficients of the geometry, just [0,1] x [0,1]
+      iganet::utils::to_array(2_i64, 2_i64),
+      // Number of B-spline coefficients of the variable
+      iganet::utils::to_array(ncoeffs, ncoeffs));
+
+  // Configure optimizer
+  auto options = net.optimizerOptions().line_search_fn("strong_wolfe").tolerance_grad(1e-9).tolerance_change(1e-12);
+  net.optimizerReset(options);
 
   // Impose the negative of the second derivative of sin(M_PI*x) *
-  // sin(M_PI*y) as right-hand side vector (manufactured solution)
-  net.f().transform([](const std::array<real_t, 2> xi) {
-    return std::array<real_t, 1>{-2.0 * M_PI * M_PI * sin(M_PI * xi[0]) *
-                                 sin(M_PI * xi[1])};
+  // sin(M_PI*y) as right-hand side vector (manufactured solution)  
+  net.f().space().coeffs(0) = iganet::ezinterp(net.G(), net.f(), []
+                                               (const std::array<torch::Tensor, 2> xi) {
+    return std::array<torch::Tensor, 1>{ -2.0 * M_PI * M_PI *
+                                         sin(M_PI * xi[0]) *
+                                         sin(M_PI * xi[1])};
   });
-
+  
   // Impose reference solution
-  net.ref().transform([](const std::array<real_t, 2> xi) {
-    return std::array<real_t, 1>{sin(M_PI * xi[0]) * sin(M_PI * xi[1])};
+  net.ref().space().coeffs(0) = iganet::ezinterp(net.G(), net.ref(), []
+                                                  (const std::array<torch::Tensor, 2> xi) {
+    return std::array<torch::Tensor, 1>{ sin(M_PI * xi[0]) *
+                                         sin(M_PI * xi[1])};
   });
+    
+
 
   // Impose boundary conditions
-  net.ref().boundary().template side<1>().transform(
+  net.ref().boundary().side<iganet::side::west>().transform(
       [](const std::array<real_t, 1> xi) {
         return std::array<real_t, 1>{0.0};
       });
 
-  net.ref().boundary().template side<2>().transform(
+  net.ref().boundary().side<iganet::side::east>().transform(
       [](const std::array<real_t, 1> xi) {
         return std::array<real_t, 1>{0.0};
       });
 
-  net.ref().boundary().template side<3>().transform(
+  net.ref().boundary().side<iganet::side::south>().transform(
       [](const std::array<real_t, 1> xi) {
         return std::array<real_t, 1>{0.0};
       });
 
-  net.ref().boundary().template side<4>().transform(
+  net.ref().boundary().side<iganet::side::north>().transform(
       [](const std::array<real_t, 1> xi) {
         return std::array<real_t, 1>{0.0};
       });
+
+  iganet::Log(iganet::log::info)
+    << "#coeff per direction: " << ncoeffs
+    << ", #layers: " << nlayers
+    << ", #neurons: " << nneurons
+    << ", #parameters: " << net.nparameters() << std::endl;
 
   // Set maximum number of epochs
-  net.options().max_epoch(iganet::utils::getenv("IGANET_MAX_EPOCH", 200_i64));
+  net.options().max_epoch(iganet::utils::getenv("IGANET_MAX_EPOCH", 50_i64));
 
   // Set tolerances for the loss functions
-  net.options().min_loss(iganet::utils::getenv("IGANET_MIN_LOSS", 1e-8));
+  net.options().min_loss(iganet::utils::getenv("IGANET_MIN_LOSS", 1e-12));
   net.options().min_loss_change(
       iganet::utils::getenv("IGANET_MIN_LOSS_CHANGE", 0.0));
   net.options().min_loss_rel_change(
-      iganet::utils::getenv("IGANET_MIN_LOSS_REL_CHANGE", 1e-3));
+      iganet::utils::getenv("IGANET_MIN_LOSS_REL_CHANGE", 0.0));
 
   // Start time measurement
   auto t1 = std::chrono::high_resolution_clock::now();
@@ -261,6 +270,18 @@ int main() {
       ->show();
 #endif
 
+  std::cout << "MSE net: " << net.ref().space().abs_diff(net.u().space()).norm() << std::endl;
+
+  // Impose collocation solution
+  net.u().space().coeffs(0) = iganet::ezpoisson(net.G(), net.u(), []
+                                                  (const std::array<torch::Tensor, 2> xi) {
+    return std::array<torch::Tensor, 1>{ -2.0 * M_PI * M_PI *
+                                         sin(M_PI * xi[0]) *
+                                         sin(M_PI * xi[1])};
+  });
+  
+  std::cout << "MSE solver: " << net.ref().space().abs_diff(net.u().space()).norm() << std::endl;
+  
   iganet::finalize();
   return 0;
 }

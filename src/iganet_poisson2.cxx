@@ -183,8 +183,7 @@ public:
 
 int main() {
   iganet::init();
-  iganet::Log.setLogLevel(iganet::log::verbose);
-  //iganet::verbose(std::cout);
+  iganet::verbose(std::cout);
 
   nlohmann::json json;
   json["res0"] = 50;
@@ -312,16 +311,14 @@ int main() {
              .count()
       << " seconds\n";
 
-  std::cin.get();  
-  
 #ifdef IGANET_WITH_MATPLOT
   // Plot the solution
-  net.G().space().plot(net.u().space(), /*net.collPts().first,*/ json)->show();
-  
+  net.G().space().plot(net.u().space(), net.collPts().first, json)->show();
+
   // Plot the difference between the exact and predicted solutions
   net.G()
       .space()
-    .plot(net.ref().space().abs_diff(net.u().space()), /*net.collPts().first,*/
+      .plot(net.ref().space().abs_diff(net.u().space()), net.collPts().first,
             json)
       ->show();
 #endif
