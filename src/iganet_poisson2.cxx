@@ -13,6 +13,9 @@
    IGANET_MIN_LOSS             - tolerance for loss function
    IGANET_MIN_LOSS_CHANGE      - tolerance for loss function change
    IGANET_MIN_LOSS_REL_CHANGE  - tolerance for loss function relative change
+   IGANET_NCOEFFS              - number of unidirectional B-spline coefficients
+   IGANET_NLAYERS              - number of network layers
+   IGANET_NNEURONS             - number of neurons per layer
 
    @author Matthias Moller
 
@@ -207,7 +210,8 @@ int main() {
   activations.emplace_back(
       std::vector<std::any>{iganet::activation::none});
   
-  poisson<optimizer_t, inputs_t, outputs_t> net( // Number of neurons per layers
+  poisson<optimizer_t, inputs_t, outputs_t> net(
+      // Network layers
       layers,
       // Activation functions
       activations,
