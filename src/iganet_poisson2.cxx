@@ -1,5 +1,5 @@
 /**
-   @file examples/iganet_poisson.cxx
+   @file examples/src/iganet_poisson2.cxx
 
    @brief Demonstration of IgANet Poisson solver
 

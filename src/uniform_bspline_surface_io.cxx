@@ -1,5 +1,5 @@
 /**
-   @file examples/uniform_bspline_surface_io.cxx
+   @file examples/src/uniform_bspline_surface_io.cxx
 
    @brief Demonstration of B-spline surface input/output functionality
 

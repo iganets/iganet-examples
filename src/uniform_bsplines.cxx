@@ -1,5 +1,5 @@
 /**
-   @file examples/uniform_bsplines.cxx
+   @file examples/src/uniform_bsplines.cxx
 
    @brief Demonstration of the uniform B-spline class
 
