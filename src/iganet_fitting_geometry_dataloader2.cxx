@@ -29,7 +29,7 @@
 
 #include <chrono>
 #include <common.hpp>
-#include <iganet.h>
+#include <iganet/iganet.h>
 #include <iostream>
 
 /// @brief Specialization of the abstract IgANet class for function fitting

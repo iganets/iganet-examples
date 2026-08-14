@@ -13,7 +13,7 @@
 */
 
 #include <common.hpp>
-#include <iganet.h>
+#include <iganet/iganet.h>
 #include <iostream>
 
 int main() {
