@@ -1,5 +1,5 @@
 /**
-   @file examples/nonuniform_bsplines.cxx
+   @file examples/src/nonuniform_bsplines.cxx
 
    @brief Demonstration of the non-uniform B-spline class
 

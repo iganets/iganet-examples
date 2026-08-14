@@ -1,5 +1,5 @@
 /**
-   @file examples/iganet_fitting_geometry.cxx
+   @file examples/src/iganet_fitting_geometry.cxx
 
    @brief Demonstration of IgANet function fitting on a geometry loaded from a
    file

@@ -1,5 +1,5 @@
 /**
-   @file examples/uniform_bspline_surface_gismo.cxx
+   @file examples/src/uniform_bspline_surface_gismo.cxx
 
    @brief Demonstration of B-spline surface G+Smo functionality
 

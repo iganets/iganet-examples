@@ -1,5 +1,5 @@
 /**
-   @file examples/iganet_fitting.cxx
+   @file examples/src/iganet_fitting.cxx
 
    @brief Demonstration of IgANet function fitting
 
