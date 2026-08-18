@@ -301,6 +301,9 @@ int main() {
 
           // Compute L2- and H2-error
           gismo::gsExprEvaluator<real_t> ev(A);
+          ev.options().addSwitch("SameElement",
+                                 "Assume all quadrature points are in one element",
+                                 false);
 
 #ifdef IGANET_WITH_MPI
           if (pg->getRank() == 0)
